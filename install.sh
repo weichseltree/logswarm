@@ -109,14 +109,16 @@ TOML
     info "Wrote default config → ${CONFIG_DIR}/config.toml"
   fi
 
-  chown -R "${SERVICE_NAME}:${SERVICE_NAME}" "$DATA_DIR" "$LOG_DIR"
+  if [[ "${user_mode:-}" != "true" ]]; then
+    chown -R "${SERVICE_NAME}:${SERVICE_NAME}" "$DATA_DIR" "$LOG_DIR"
+  fi
 }
 
 # ---------- systemd unit -----------------------------------------------------
 install_systemd_unit() {
   local unit_dir="/etc/systemd/system"
   local user_flag=""
-  if [[ "${USER_MODE:-}" == "true" ]]; then
+  if [[ "${user_mode:-}" == "true" ]]; then
     unit_dir="${HOME}/.config/systemd/user"
     mkdir -p "$unit_dir"
     user_flag="--user"
@@ -186,7 +188,7 @@ main() {
       uninstall
       ;;
     --user)
-      USER_MODE="true"
+      user_mode="true"
       ensure_binary
       install_files
       install_systemd_unit
