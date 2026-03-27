@@ -7,12 +7,9 @@ import {
   setDoc,
   updateDoc,
   collection,
-  query,
-  where,
   getDocs,
   serverTimestamp,
   arrayUnion,
-  deleteField,
   onSnapshot,
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -32,8 +29,6 @@ let currentComputeSpec = null; // { hash, seed, primes, signature, dimensions }
 
 // ─── Constants ───────────────────────────────────────────────────────
 const RESET_PIN = '67'; // The "6 7 OK" universal fallback
-const MAX_ATTEMPTS = 5;
-const MASTER_SECRET_TYPE = 'master';
 
 // ─── Firebase Auth ───────────────────────────────────────────────────
 let authInitPromise = null;

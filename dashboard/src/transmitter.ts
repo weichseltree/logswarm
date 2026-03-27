@@ -41,10 +41,14 @@ export class Transmitter {
     const wait = (ms: number) =>
       new Promise<void>((resolve, reject) => {
         const timer = setTimeout(resolve, ms);
-        signal.addEventListener('abort', () => {
-          clearTimeout(timer);
-          reject(new DOMException('Aborted', 'AbortError'));
-        });
+        signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer);
+            reject(new DOMException('Aborted', 'AbortError'));
+          },
+          { once: true },
+        );
       });
 
     try {

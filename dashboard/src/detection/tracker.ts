@@ -22,7 +22,15 @@ const DEFAULT_SIGMA_ACCEL = 2.0;
 /** Measurement noise: centroid position standard deviation (px). */
 const DEFAULT_SIGMA_MEAS = 8.0;
 
-// ── Matrix helpers (4×4 and 2×4, inlined for zero-alloc hot path) ────
+// ── Matrix helpers (4×4 and 2×4, zero-alloc via module-scope scratch buffers) ────
+//
+// Scratch buffers — reused across kalmanPredict / kalmanUpdate calls to avoid
+// per-frame Float64Array allocations and GC pressure.
+const _scratch4x4_a = new Float64Array(16); // general-purpose scratch A
+const _scratch4x4_b = new Float64Array(16); // general-purpose scratch B
+const _scratch4x4_c = new Float64Array(16); // general-purpose scratch C
+const _scratchQ = new Float64Array(16);     // process noise Q
+const _scratchK = new Float64Array(8);      // 4×2 Kalman gain
 
 function mat4identity(): Float64Array {
   const m = new Float64Array(16);
@@ -118,7 +126,9 @@ export function kalmanPredict(
   const dt = 1;
 
   // F = [[1,0,dt,0],[0,1,0,dt],[0,0,1,0],[0,0,0,1]]
-  const F = mat4identity();
+  const F = _scratch4x4_a;
+  F.fill(0);
+  F[0] = F[5] = F[10] = F[15] = 1;
   mat4set(F, 0, 2, dt);
   mat4set(F, 1, 3, dt);
 
@@ -132,13 +142,14 @@ export function kalmanPredict(
   // velocity stays the same
 
   // P' = F * P * Fᵀ + Q
-  const Ft = new Float64Array(16);
+  const Ft = _scratch4x4_b;
   mat4transpose(F, Ft);
 
-  const FP = new Float64Array(16);
+  const FP = _scratch4x4_c;
   mat4mul(F, P, FP);
 
-  const FPFt = new Float64Array(16);
+  // F (_scratch4x4_a) is no longer needed; reuse it for FPFt.
+  const FPFt = _scratch4x4_a;
   mat4mul(FP, Ft, FPFt);
 
   // Q: process noise
@@ -146,7 +157,8 @@ export function kalmanPredict(
   const dt2 = dt * dt;
   const dt3 = dt2 * dt;
   const dt4 = dt3 * dt;
-  const Q = new Float64Array(16);
+  const Q = _scratchQ;
+  Q.fill(0);
   mat4set(Q, 0, 0, (dt4 / 4) * q);
   mat4set(Q, 0, 2, (dt3 / 2) * q);
   mat4set(Q, 1, 1, (dt4 / 4) * q);
@@ -187,7 +199,7 @@ export function kalmanUpdate(
 
   // K = P * Hᵀ * S⁻¹  (4×2)
   // P * Hᵀ is columns 0 and 1 of P
-  const K = new Float64Array(8); // 4×2 row-major
+  const K = _scratchK;
   for (let i = 0; i < 4; i++) {
     const ph0 = mat4get(P, i, 0);
     const ph1 = mat4get(P, i, 1);
@@ -202,17 +214,20 @@ export function kalmanUpdate(
 
   // P = (I - K * H) * P
   // KH is 4×4
-  const KH = new Float64Array(16);
+  const KH = _scratch4x4_a;
+  KH.fill(0);
   for (let i = 0; i < 4; i++) {
     mat4set(KH, i, 0, K[i * 2]);
     mat4set(KH, i, 1, K[i * 2 + 1]);
     // columns 2,3 remain 0
   }
 
-  const IminusKH = mat4identity();
+  const IminusKH = _scratch4x4_b;
+  IminusKH.fill(0);
+  IminusKH[0] = IminusKH[5] = IminusKH[10] = IminusKH[15] = 1;
   for (let i = 0; i < 16; i++) IminusKH[i] -= KH[i];
 
-  const newP = new Float64Array(16);
+  const newP = _scratch4x4_c;
   mat4mul(IminusKH, P, newP);
 
   P.set(newP);
