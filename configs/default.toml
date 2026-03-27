@@ -1,0 +1,54 @@
+# =============================================================================
+# logswarm default configuration
+# =============================================================================
+# This file is the single source of truth for all tunables.  Every component
+# of the swarm reads from this file (or a user-supplied override).
+#
+# See docs/USAGE.md for detailed descriptions of each section.
+
+# ---------------------------------------------------------------------------
+# [swarm]  —  Top-level swarm settings
+# ---------------------------------------------------------------------------
+[swarm]
+# Number of worker processes to spawn.  Defaults to the number of logical CPUs.
+workers = 0          # 0 = auto-detect
+
+# Maximum number of tasks that may be queued before back-pressure is applied.
+max_queue_size = 1024
+
+# ---------------------------------------------------------------------------
+# [coordinator]  —  Settings for the coordinator process
+# ---------------------------------------------------------------------------
+[coordinator]
+# Milliseconds between health-check polls of each worker.
+health_check_interval_ms = 5000
+
+# How long (ms) to wait for a worker to respond before marking it unhealthy.
+worker_timeout_ms = 10000
+
+# ---------------------------------------------------------------------------
+# [worker]  —  Per-worker settings
+# ---------------------------------------------------------------------------
+[worker]
+# Maximum number of concurrent tasks a single worker may execute.
+max_concurrent_tasks = 4
+
+# Working directory for task execution (relative to project root).
+work_dir = "tmp/work"
+
+# ---------------------------------------------------------------------------
+# [logging]  —  Structured logging configuration
+# ---------------------------------------------------------------------------
+[logging]
+# Minimum log level: "trace", "debug", "info", "warn", "error"
+level = "info"
+
+# Log output target: "stdout", "stderr", or a file path.
+output = "stdout"
+
+# ---------------------------------------------------------------------------
+# [assets]  —  Shared asset paths (relative to project root)
+# ---------------------------------------------------------------------------
+[assets]
+dir = "assets"
+templates_dir = "assets/templates"
