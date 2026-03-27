@@ -7,6 +7,17 @@
 # See docs/USAGE.md for detailed descriptions of each section.
 
 # ---------------------------------------------------------------------------
+# [service]  —  Daemon service settings
+# ---------------------------------------------------------------------------
+[service]
+# Auto-generated UUID on first run (leave empty).
+node_id = ""
+# Address for the dashboard HTTP/WebSocket server.
+dashboard_bind = "127.0.0.1:8420"
+# Path to the dashboard static build output.
+dashboard_dir = "dashboard/dist"
+
+# ---------------------------------------------------------------------------
 # [swarm]  —  Top-level swarm settings
 # ---------------------------------------------------------------------------
 [swarm]

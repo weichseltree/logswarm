@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ── JavaScript / TypeScript tests (Vitest) ──────────────────────────
+  test-js:
+    name: JS/TS Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Root project (frontend dashboard JS)
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Run root tests
+        run: npm test
+
+      # Dashboard (Lumina protocol TypeScript)
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Run dashboard tests
+        working-directory: dashboard
+        run: npm test
+
+  # ── Rust tests (cargo) ─────────────────────────────────────────────
+  test-rust:
+    name: Rust Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose

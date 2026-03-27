@@ -9,11 +9,34 @@ use std::path::{Path, PathBuf};
 /// Root configuration — mirrors the TOML structure in `configs/default.toml`.
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    pub service: ServiceConfig,
     pub swarm: SwarmConfig,
     pub coordinator: CoordinatorConfig,
     pub worker: WorkerConfig,
     pub logging: LoggingConfig,
     pub assets: AssetsConfig,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ServiceConfig {
+    /// Auto-generated UUID on first run.
+    #[serde(default)]
+    pub node_id: String,
+    /// Address to bind the dashboard HTTP/WebSocket server.
+    #[serde(default = "ServiceConfig::default_bind")]
+    pub dashboard_bind: String,
+    /// Path to the dashboard static build directory.
+    #[serde(default = "ServiceConfig::default_dashboard_dir")]
+    pub dashboard_dir: String,
+}
+
+impl ServiceConfig {
+    fn default_bind() -> String {
+        "127.0.0.1:8420".to_string()
+    }
+    fn default_dashboard_dir() -> String {
+        "dashboard/dist".to_string()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -65,6 +88,7 @@ mod tests {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("configs/default.toml");
         let config = Config::load(&path).expect("failed to load default config");
 
+        assert_eq!(config.service.dashboard_bind, "127.0.0.1:8420");
         assert_eq!(config.swarm.workers, 0);
         assert_eq!(config.swarm.max_queue_size, 1024);
         assert_eq!(config.coordinator.health_check_interval_ms, 5000);
