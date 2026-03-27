@@ -6,7 +6,8 @@ use std::process;
 
 use logswarm::config::Config;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     let mut config_path = PathBuf::from("configs/default.toml");
@@ -84,5 +85,16 @@ fn main() {
         config.assets.dir.display(),
         config.assets.templates_dir.display(),
     );
+    println!(
+        "logswarm: dashboard_bind={} dashboard_dir={}",
+        config.service.dashboard_bind,
+        config.service.dashboard_dir,
+    );
     println!("logswarm: swarm ready — {num_workers} worker(s) standing by");
+
+    // Start the HTTP/WebSocket server (blocks until shutdown signal)
+    if let Err(e) = logswarm::server::run(config).await {
+        eprintln!("logswarm: server error: {e}");
+        process::exit(1);
+    }
 }
