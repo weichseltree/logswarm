@@ -1,6 +1,13 @@
 # LogSwarm
 
-Distributed computation routing and filtering with anonymous secret-based authentication. Connect devices to a cluster of computation nodes that collaborate on shared goals — all managed through Firebase with zero-knowledge identity.
+A virtual swarm of service agents that process heterogeneous data streams in real time, with a browser-based dashboard powered by a graph neural network. Distributed computation routing and filtering with anonymous secret-based authentication — connect devices to a cluster of computation nodes that collaborate on shared goals, all managed through Firebase with zero-knowledge identity.
+
+## Quick Start
+
+```bash
+chmod +x logswarm.sh
+./logswarm.sh
+```
 
 ## Architecture
 
@@ -203,3 +210,14 @@ npm run deploy
 | **Routing & Filtering** | Per-node routing config with JSON filter/route arrays and active toggle |
 | **Cluster Nodes** | Join a cluster by ID, view all member node IDs |
 | **Master View** | (Master only) All registered secrets across all nodes |
+
+## Documentation
+
+* **[docs/DESIGN.md](docs/DESIGN.md)** — Architecture overview and strict
+  design guidelines that all contributors must follow.
+* **[docs/USAGE.md](docs/USAGE.md)** — How to use the shared assets, configs,
+  and the `logswarm.sh` launcher.
+
+## License
+
+[MIT](LICENSE)
