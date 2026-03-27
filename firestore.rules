@@ -88,6 +88,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // --- Environment (public) ---
+    // The env/version document is publicly readable so all clients
+    // can detect new deployments and prompt a refresh.
+    match /env/version {
+      allow read: if true;
+      allow write: if false; // Only set via admin SDK / CI
+    }
+
     // --- Master access ---
     // A master password hash grants read access to all private data.
     match /master/{docId} {

@@ -11,6 +11,7 @@ import {
 import { collectDeviceInfo } from './device-info.js';
 import { renderDashboard } from './dashboard.js';
 import { selfVerify } from './verification.js';
+import { subscribeToVersion, getAppVersion } from './version-check.js';
 
 // ─── State ───────────────────────────────────────────────────────────
 let attempts = 0;
@@ -28,6 +29,7 @@ window.__logswarmAuth = {
 
 // ─── Boot ────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  subscribeToVersion();
   const lastError = localStorage.getItem('logswarm_last_error');
   if (lastError) {
     console.error('[LogSwarm] Error from previous attempt:', lastError);
@@ -97,6 +99,7 @@ function showLoginScreen() {
 
         <div id="login-status" class="status-bar"></div>
         <p class="attempt-counter" id="attempt-counter"></p>
+        <p class="app-version">v${getAppVersion()}</p>
       </div>
     </div>
   `;
