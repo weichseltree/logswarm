@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import firebaseConfig from './firebase-config.js';
-import { hashSecret } from './crypto-utils.js';
+import { hashSecret, deriveComputeSpec } from './crypto-utils.js';
 
 const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, { localCache: memoryLocalCache() });
@@ -28,6 +28,7 @@ let currentNodeId = null;
 let linkedSecrets = []; // [{hash, type, label, createdAt}]
 let isMaster = false;
 let unsubscribers = [];
+let currentComputeSpec = null; // { hash, seed, primes, signature, dimensions }
 
 // ─── Constants ───────────────────────────────────────────────────────
 const RESET_PIN = '67'; // The "6 7 OK" universal fallback
@@ -72,6 +73,10 @@ export function getLinkedSecrets() {
   return [...linkedSecrets];
 }
 
+export function getComputeSpec() {
+  return currentComputeSpec;
+}
+
 // ─── PIN / Secret Authentication ─────────────────────────────────────
 /**
  * Returns: { action, nodeData?, secretHash? }
@@ -85,6 +90,9 @@ export async function authenticateWithSecret(rawSecret, type = 'pin') {
   }
 
   const secretHash = await hashSecret(rawSecret);
+
+  // Derive computation spec from the secret
+  currentComputeSpec = await deriveComputeSpec(rawSecret);
 
   // Check if this secret already exists in Firestore
   const secretDocRef = doc(db, 'secrets', secretHash);

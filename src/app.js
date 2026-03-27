@@ -7,9 +7,11 @@ import {
   joinCluster,
   getClusterNodes,
   getNodeId,
+  getComputeSpec,
 } from './auth.js';
 import { collectDeviceInfo } from './device-info.js';
 import { renderDashboard, destroyDashboard } from './dashboard.js';
+import { selfVerify } from './verification.js';
 
 // ─── State ───────────────────────────────────────────────────────────
 let attempts = 0;
@@ -22,6 +24,7 @@ window.__logswarmAuth = {
   resetNode,
   joinCluster,
   getClusterNodes,
+  getComputeSpec,
 };
 
 // ─── Boot ────────────────────────────────────────────────────────────
@@ -183,6 +186,7 @@ function wireMaster() {
   document.getElementById('master-go')?.addEventListener('click', async () => {
     const val = document.getElementById('master-input').value;
     if (!val) return;
+    showOverlay('Verifying master password…');
     setStatus('Verifying master password…', 'info');
     try {
       await initAuth();
@@ -192,12 +196,14 @@ function wireMaster() {
         // Also authenticate as a secret for the session
         await doAuthenticate(val, 'master');
       } else {
+        hideOverlay();
         attempts++;
         updateAttemptCounter();
         setStatus('Invalid master password', 'error');
         checkMaxAttempts();
       }
     } catch (err) {
+      hideOverlay();
       setStatus('Error: ' + err.message, 'error');
     }
   });
@@ -206,22 +212,55 @@ function wireMaster() {
   });
 }
 
+// ─── Loading Overlay ──────────────────────────────────────────────────
+function showOverlay(message = 'Authenticating…') {
+  let overlay = document.getElementById('loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'loading-overlay';
+    overlay.innerHTML = `
+      <div class="overlay-content">
+        <div class="spinner"></div>
+        <p class="overlay-message"></p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.querySelector('.overlay-message').textContent = message;
+  overlay.classList.add('visible');
+}
+
+function hideOverlay() {
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) overlay.classList.remove('visible');
+}
+
+function setOverlayMessage(message) {
+  const el = document.querySelector('#loading-overlay .overlay-message');
+  if (el) el.textContent = message;
+}
+
 // ─── Core Authentication Flow ────────────────────────────────────────
 async function doAuthenticate(rawSecret, type) {
+  showOverlay('Authenticating…');
   setStatus('Authenticating…', 'info');
 
   try {
     // Ensure we have an anonymous Firebase session
+    setOverlayMessage('Connecting to server…');
     await initAuth();
 
+    setOverlayMessage('Verifying secret…');
     const result = await authenticateWithSecret(rawSecret, type);
 
     if (result.action === 'reset') {
+      setOverlayMessage('Resetting node…');
       setStatus('Resetting node…', 'info');
       return; // Page will reload
     }
 
     // Collect device info and register/update node
+    setOverlayMessage('Collecting device info…');
     setStatus('Collecting device info…', 'info');
     const deviceInfo = await collectDeviceInfo();
     await ensureNodeDocument(deviceInfo);
@@ -232,13 +271,29 @@ async function doAuthenticate(rawSecret, type) {
       setStatus('New secret registered — dashboard ready', 'success');
     }
 
+    // Run I/O verification (proof of attention)
+    setOverlayMessage('Running computation proof…');
+    setStatus('Verifying computation graph…', 'info');
+    const spec = getComputeSpec();
+    const verification = selfVerify(spec.seed, spec.dimensions);
+    if (!verification.verified) {
+      console.error('[LogSwarm] Computation verification failed:', verification);
+      setStatus('Computation verification failed — proceeding anyway', 'warning');
+    } else {
+      setStatus(`Proof passed (${verification.passed}/${verification.total} tests)`, 'success');
+    }
+
+    setOverlayMessage('Loading dashboard…');
+
     // Transition to dashboard
     setTimeout(() => {
+      hideOverlay();
       transitionToDashboard();
     }, 500);
   } catch (err) {
     console.error('[LogSwarm] Authentication error:', err);
     localStorage.setItem('logswarm_last_error', err.message + '\n' + err.stack);
+    hideOverlay();
     attempts++;
     updateAttemptCounter();
     setStatus('Error: ' + err.message, 'error');

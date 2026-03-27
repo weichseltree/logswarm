@@ -2,6 +2,7 @@ import {
   getNodeId,
   getLinkedSecrets,
   getIsMaster,
+  getComputeSpec,
   getSharedData,
   getRoutingConfig,
   updateRoutingConfig,
@@ -11,75 +12,44 @@ import {
   setSharedData,
 } from './auth.js';
 import { collectDeviceInfo, subscribeSensors } from './device-info.js';
+import { buildDashboardTree, renderTileHTML, spawnTile, createTile, getRootTile } from './tiling.js';
+import { selfVerify } from './verification.js';
+import { generateGraphSpec } from './crypto-utils.js';
 
 let sensorCleanup = null;
 let deviceInfo = null;
 
 export async function renderDashboard(container) {
   deviceInfo = await collectDeviceInfo();
+  const spec = window.__logswarmAuth.getComputeSpec();
+
+  // Build tile tree using prime signature
+  const root = buildDashboardTree(spec?.signature || []);
+
+  // Add master tile if applicable
+  if (getIsMaster()) {
+    spawnTile(['network'], createTile({
+      id: 'network.master',
+      label: 'Master — All Secrets',
+      type: 'content',
+      contentFn: 'renderMasterSecrets',
+      depth: 2,
+    }));
+  }
 
   container.innerHTML = `
     <header class="dash-header">
       <h1>LogSwarm Node</h1>
       <span class="node-id" title="Node ID">${getNodeId()?.slice(0, 12)}…</span>
+      ${spec ? `<span class="compute-badge" title="Seed: ${spec.seed}, Dims: ${spec.dimensions}">
+        ⬡ ${spec.dimensions}D · ${spec.signature.slice(0, 4).join('·')}${spec.signature.length > 4 ? '…' : ''}
+      </span>` : ''}
       <button id="btn-add-secret" class="btn btn-sm">+ Add Secret</button>
       <button id="btn-reset" class="btn btn-sm btn-danger">Reset (6 7 OK)</button>
     </header>
 
-    <div class="dash-grid">
-      <!-- Linked Secrets -->
-      <section class="card" id="sec-secrets">
-        <h2>Linked Secrets</h2>
-        <div id="secrets-list" class="scroll-list"></div>
-      </section>
-
-      <!-- Device Information -->
-      <section class="card" id="sec-device">
-        <h2>Device Information</h2>
-        <div id="device-info" class="scroll-list"></div>
-      </section>
-
-      <!-- Permissions -->
-      <section class="card" id="sec-permissions">
-        <h2>Permissions &amp; Input Sources</h2>
-        <div id="permissions-list" class="scroll-list"></div>
-      </section>
-
-      <!-- Live Sensors -->
-      <section class="card" id="sec-sensors">
-        <h2>Live Sensors</h2>
-        <div id="sensor-data" class="scroll-list"><em>Waiting for sensor data…</em></div>
-      </section>
-
-      <!-- Shared Data (Firestore documents) -->
-      <section class="card card-wide" id="sec-shared">
-        <h2>Shared Data (Firestore)</h2>
-        <div id="shared-data" class="scroll-list"></div>
-      </section>
-
-      <!-- Routing & Filtering -->
-      <section class="card" id="sec-routing">
-        <h2>Routing &amp; Filtering</h2>
-        <div id="routing-config"></div>
-      </section>
-
-      <!-- Cluster -->
-      <section class="card" id="sec-cluster">
-        <h2>Cluster Nodes</h2>
-        <div id="cluster-nodes" class="scroll-list"></div>
-        <div class="input-row">
-          <input id="cluster-id-input" type="text" placeholder="Cluster ID" />
-          <button id="btn-join-cluster" class="btn btn-sm">Join</button>
-        </div>
-      </section>
-
-      ${getIsMaster() ? `
-      <!-- Master View -->
-      <section class="card card-wide card-master" id="sec-master">
-        <h2>Master Access — All Secrets</h2>
-        <div id="master-secrets" class="scroll-list"></div>
-      </section>
-      ` : ''}
+    <div class="tile-canvas">
+      ${renderTileHTML(root)}
     </div>
 
     <!-- Add Secret Modal -->
@@ -98,30 +68,46 @@ export async function renderDashboard(container) {
     </dialog>
   `;
 
-  renderSecrets();
-  renderDeviceInfo();
-  renderPermissions();
-  await renderSharedData();
-  await renderRoutingConfig();
+  // Populate tile content
+  populateTileContent('node.secrets', renderSecretsHTML);
+  populateTileContent('node.device', renderDeviceInfoHTML);
+  populateTileContent('node.permissions', renderPermissionsHTML);
+  populateTileContent('node.sensors', () => '<em>Waiting for sensor data…</em>');
+  await populateTileContentAsync('network.shared', renderSharedDataHTML);
+  await populateTileContentAsync('network.routing', renderRoutingConfigHTML);
+  populateTileContent('network.cluster', renderClusterHTML);
+  populateTileContent('compute.spec', () => renderComputeSpecHTML(spec));
+  populateTileContent('compute.verify', () => renderVerificationHTML(spec));
+  populateTileContent('compute.status', () => renderProofStatusHTML(spec));
+
   startSensors();
   wireEvents(container);
 
   if (getIsMaster()) {
-    await renderMasterSecrets();
+    await populateTileContentAsync('network.master', renderMasterSecretsHTML);
   }
 }
 
+// ─── Tile Content Helpers ────────────────────────────────────────────
+function populateTileContent(tileId, renderFn) {
+  const el = document.getElementById(`tile-body-${tileId}`);
+  if (el) el.innerHTML = renderFn();
+}
+
+async function populateTileContentAsync(tileId, renderFn) {
+  const el = document.getElementById(`tile-body-${tileId}`);
+  if (el) el.innerHTML = await renderFn();
+}
+
 // ─── Secrets List ────────────────────────────────────────────────────
-function renderSecrets() {
-  const el = document.getElementById('secrets-list');
+function renderSecretsHTML() {
   const secrets = getLinkedSecrets();
 
   if (secrets.length === 0) {
-    el.innerHTML = '<em>No linked secrets yet. Add one to share data.</em>';
-    return;
+    return '<em>No linked secrets yet. Add one to share data.</em>';
   }
 
-  el.innerHTML = secrets
+  return secrets
     .map(
       (s) => `
     <div class="list-item">
@@ -133,11 +119,15 @@ function renderSecrets() {
     .join('');
 }
 
+// Keep old name for re-renders from modal
+function renderSecrets() {
+  populateTileContent('node.secrets', renderSecretsHTML);
+}
+
 // ─── Device Info ─────────────────────────────────────────────────────
-function renderDeviceInfo() {
-  const el = document.getElementById('device-info');
+function renderDeviceInfoHTML() {
   const flat = flattenObject(deviceInfo, '', ['permissions', 'mediaDevices', 'geolocation']);
-  el.innerHTML = Object.entries(flat)
+  return Object.entries(flat)
     .map(
       ([key, val]) =>
         `<div class="list-item kv"><span class="key">${key}</span><span class="val">${formatValue(val)}</span></div>`
@@ -146,8 +136,7 @@ function renderDeviceInfo() {
 }
 
 // ─── Permissions & Input Sources ─────────────────────────────────────
-function renderPermissions() {
-  const el = document.getElementById('permissions-list');
+function renderPermissionsHTML() {
   const perms = deviceInfo.permissions || {};
   const media = deviceInfo.mediaDevices || [];
   const geo = deviceInfo.geolocation || {};
@@ -192,12 +181,13 @@ function renderPermissions() {
     html += '<em>Not available</em>';
   }
 
-  el.innerHTML = html;
+  return html;
 }
 
 // ─── Live Sensors ────────────────────────────────────────────────────
 function startSensors() {
-  const el = document.getElementById('sensor-data');
+  const el = document.getElementById('tile-body-node.sensors');
+  if (!el) return;
   const data = {};
 
   sensorCleanup = subscribeSensors((type, payload) => {
@@ -223,13 +213,11 @@ function startSensors() {
 }
 
 // ─── Shared Data ─────────────────────────────────────────────────────
-async function renderSharedData() {
-  const el = document.getElementById('shared-data');
+async function renderSharedDataHTML() {
   const secrets = getLinkedSecrets();
 
   if (secrets.length === 0) {
-    el.innerHTML = '<em>No secrets linked — authenticate to view shared data.</em>';
-    return;
+    return '<em>No secrets linked — authenticate to view shared data.</em>';
   }
 
   let html = '';
@@ -253,7 +241,9 @@ async function renderSharedData() {
     html += '</div>';
 
     // Subscribe to live updates
+    const el = document.getElementById('tile-body-network.shared');
     subscribeToSharedData(secret.hash, (updatedDocs) => {
+      if (!el) return;
       const group = el.querySelector(`[data-secret="${secret.hash}"]`);
       if (!group) return;
       group.innerHTML = updatedDocs
@@ -267,15 +257,14 @@ async function renderSharedData() {
         .join('');
     });
   }
-  el.innerHTML = html;
+  return html;
 }
 
 // ─── Routing Config ──────────────────────────────────────────────────
-async function renderRoutingConfig() {
-  const el = document.getElementById('routing-config');
+async function renderRoutingConfigHTML() {
   const config = await getRoutingConfig();
 
-  el.innerHTML = `
+  return `
     <div class="list-item kv">
       <span class="key">Active</span>
       <span class="val"><input type="checkbox" id="routing-active" ${config.active ? 'checked' : ''} /></span>
@@ -292,13 +281,22 @@ async function renderRoutingConfig() {
   `;
 }
 
+// ─── Cluster ─────────────────────────────────────────────────────────
+function renderClusterHTML() {
+  return `
+    <div id="cluster-nodes" class="scroll-list"></div>
+    <div class="input-row">
+      <input id="cluster-id-input" type="text" placeholder="Cluster ID" />
+      <button id="btn-join-cluster" class="btn btn-sm">Join</button>
+    </div>
+  `;
+}
+
 // ─── Master Secrets ──────────────────────────────────────────────────
-async function renderMasterSecrets() {
-  const el = document.getElementById('master-secrets');
-  if (!el) return;
+async function renderMasterSecretsHTML() {
   const allSecrets = await getAllSecrets();
 
-  el.innerHTML = allSecrets
+  return allSecrets
     .map(
       (s) =>
         `<div class="list-item kv">
@@ -308,6 +306,69 @@ async function renderMasterSecrets() {
         </div>`
     )
     .join('');
+}
+
+// ─── Compute Spec ────────────────────────────────────────────────────
+function renderComputeSpecHTML(spec) {
+  if (!spec) return '<em>No computation spec — authenticate first.</em>';
+
+  const graphSpec = generateGraphSpec(spec.seed, spec.dimensions);
+
+  return `
+    <div class="list-item kv"><span class="key">Seed</span><span class="val">${spec.seed}</span></div>
+    <div class="list-item kv"><span class="key">Dimensions</span><span class="val">${spec.dimensions}</span></div>
+    <div class="list-item kv"><span class="key">Prime Signature</span><span class="val">[${spec.signature.join(', ')}]</span></div>
+    <div class="list-item kv"><span class="key">Full Factorization</span><span class="val">[${spec.primes.join(' × ')}]</span></div>
+    <div class="list-item kv"><span class="key">Graph Layers</span><span class="val">${graphSpec.layers}</span></div>
+    <details class="doc-details">
+      <summary>Graph Structure</summary>
+      <pre>${JSON.stringify(graphSpec.graph.map(l => ({
+        layer: l.layer, op: l.op, in: l.inputDim, out: l.outputDim
+      })), null, 2)}</pre>
+    </details>
+  `;
+}
+
+// ─── I/O Verification ────────────────────────────────────────────────
+function renderVerificationHTML(spec) {
+  if (!spec) return '<em>No spec to verify.</em>';
+
+  const result = selfVerify(spec.seed, spec.dimensions);
+
+  return `
+    <div class="list-item kv">
+      <span class="key">Status</span>
+      <span class="badge ${result.verified ? 'perm-granted' : 'perm-denied'}">${result.verified ? 'VERIFIED' : 'FAILED'}</span>
+    </div>
+    <div class="list-item kv"><span class="key">Tests Passed</span><span class="val">${result.passed} / ${result.total}</span></div>
+    <details class="doc-details">
+      <summary>Test Results</summary>
+      ${result.results.map((r, i) => `
+        <div class="list-item kv">
+          <span class="key">Test ${i + 1}</span>
+          <span class="badge ${r.passed ? 'perm-granted' : 'perm-denied'}">${r.passed ? 'PASS' : 'FAIL'}</span>
+        </div>
+      `).join('')}
+    </details>
+  `;
+}
+
+// ─── Proof Status ────────────────────────────────────────────────────
+function renderProofStatusHTML(spec) {
+  if (!spec) return '<em>No proof generated.</em>';
+
+  const result = selfVerify(spec.seed, spec.dimensions);
+
+  return `
+    <div class="proof-summary ${result.verified ? 'proof-verified' : 'proof-failed'}">
+      <div class="proof-icon">${result.verified ? '✓' : '✗'}</div>
+      <div class="proof-text">
+        <strong>${result.verified ? 'Computation Verified' : 'Verification Failed'}</strong>
+        <p>${spec.dimensions}-dimensional graph, ${result.total} test cases</p>
+        <p>Seed: <code>${spec.seed}</code></p>
+      </div>
+    </div>
+  `;
 }
 
 // ─── Events ──────────────────────────────────────────────────────────
@@ -476,7 +537,7 @@ function handleAuthResult(result) {
   }
   document.getElementById('add-secret-dialog')?.close();
   renderSecrets();
-  renderSharedData();
+  populateTileContentAsync('network.shared', renderSharedDataHTML);
 }
 
 // ─── Toast Notifications ─────────────────────────────────────────────

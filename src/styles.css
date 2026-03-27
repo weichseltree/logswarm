@@ -238,12 +238,196 @@ pre { background: var(--bg); padding: 0.75rem; border-radius: var(--radius-sm); 
   border-radius: var(--radius-sm);
 }
 
-.dash-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  gap: 1rem;
+.compute-badge {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--purple);
+  background: rgba(181, 122, 255, 0.1);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(181, 122, 255, 0.25);
+}
+
+/* ─── Tiling System ────────────────────────────────────────────────── */
+.tile-canvas {
   padding: 1rem 1.5rem;
 }
+
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.tile:hover {
+  border-color: rgba(79, 140, 255, 0.3);
+}
+
+.tile-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.tile-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.tile-count {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 0.1rem 0.5rem;
+  border-radius: 99px;
+}
+
+.tile-lock-icon {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.tile-spawn-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.tile-spawn-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.tile-body {
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tile-content {
+  min-height: 60px;
+}
+
+.tile-locked {
+  border-color: rgba(255, 170, 59, 0.3);
+  opacity: 0.85;
+}
+
+.tile-locked .tile-header {
+  background: rgba(255, 170, 59, 0.08);
+}
+
+.tile-locked .tile-label {
+  color: var(--orange);
+}
+
+/* Container tiles — recursive grid */
+.tile-container > .tile-children {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+/* Depth-based visual nesting */
+.tile-container[data-depth="0"] {
+  background: transparent;
+  border: none;
+}
+
+.tile-container[data-depth="0"] > .tile-header {
+  display: none;
+}
+
+.tile-container[data-depth="0"] > .tile-children {
+  padding: 0;
+  gap: 1rem;
+}
+
+.tile-container[data-depth="1"] {
+  background: var(--surface);
+}
+
+.tile-container[data-depth="1"] > .tile-header .tile-label {
+  color: var(--accent);
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tile-container[data-depth="2"] {
+  background: var(--surface-alt);
+}
+
+/* ─── Proof Status ─────────────────────────────────────────────────── */
+.proof-summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.proof-verified {
+  background: rgba(67, 217, 160, 0.08);
+  border: 1px solid rgba(67, 217, 160, 0.2);
+}
+
+.proof-failed {
+  background: rgba(255, 92, 114, 0.08);
+  border: 1px solid rgba(255, 92, 114, 0.2);
+}
+
+.proof-icon {
+  font-size: 2rem;
+  font-weight: 700;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.proof-verified .proof-icon {
+  color: var(--green);
+  background: rgba(67, 217, 160, 0.15);
+}
+
+.proof-failed .proof-icon {
+  color: var(--red);
+  background: rgba(255, 92, 114, 0.15);
+}
+
+.proof-text p {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.proof-text code {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+/* Legacy card styles (kept for dialog and shared components) */
 
 .card {
   background: var(--surface);
@@ -399,6 +583,53 @@ dialog h3 { margin-bottom: 1rem; }
 .toast-success { background: var(--green); color: var(--bg); }
 .toast-error { background: var(--red); color: #fff; }
 
+/* ─── Loading Overlay ──────────────────────────────────────────────── */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 23, 0.85);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+#loading-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.overlay-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.overlay-message {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
 /* ─── Utility ──────────────────────────────────────────────────────── */
 .fade-out { opacity: 0; transition: opacity 0.3s ease; }
 
@@ -411,7 +642,8 @@ dialog h3 { margin-bottom: 1rem; }
 /* ─── Responsive ───────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   html { font-size: 14px; }
-  .dash-grid { grid-template-columns: 1fr; padding: 0.75rem; }
+  .tile-canvas { padding: 0.75rem; }
+  .tile-container > .tile-children { grid-template-columns: 1fr; padding: 0.5rem; }
   .login-card { padding: 1.5rem 1.25rem; }
   .pin-pad { max-width: 240px; }
   .toast { left: 1rem; right: 1rem; bottom: 1rem; }
