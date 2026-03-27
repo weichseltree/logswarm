@@ -18,6 +18,7 @@ import { generateGraphSpec } from './crypto-utils.js';
 
 let sensorCleanup = null;
 let deviceInfo = null;
+let sharedDataUnsubscribers = [];
 
 export async function renderDashboard(container) {
   deviceInfo = await collectDeviceInfo();
@@ -214,6 +215,10 @@ function startSensors() {
 
 // ─── Shared Data ─────────────────────────────────────────────────────
 async function renderSharedDataHTML() {
+  // Clean up any existing shared-data listeners before re-subscribing
+  sharedDataUnsubscribers.forEach((unsub) => unsub());
+  sharedDataUnsubscribers = [];
+
   const secrets = getLinkedSecrets();
 
   if (secrets.length === 0) {
@@ -223,7 +228,7 @@ async function renderSharedDataHTML() {
   let html = '';
   for (const secret of secrets) {
     const docs = await getSharedData(secret.hash);
-    html += `<div class="shared-group">
+    html += `<div class="shared-group" data-secret="${secret.hash}">
       <h3>Secret: ${secret.hash?.slice(0, 12)}… <span class="badge badge-${secret.type}">${secret.type}</span></h3>`;
     if (docs.length === 0) {
       html += '<em>No shared documents</em>';
@@ -240,11 +245,11 @@ async function renderSharedDataHTML() {
     }
     html += '</div>';
 
-    // Subscribe to live updates
-    const el = document.getElementById('tile-body-network.shared');
-    subscribeToSharedData(secret.hash, (updatedDocs) => {
-      if (!el) return;
-      const group = el.querySelector(`[data-secret="${secret.hash}"]`);
+    // Subscribe to live updates and track the unsubscriber
+    const unsub = subscribeToSharedData(secret.hash, (updatedDocs) => {
+      const tile = document.getElementById('tile-body-network.shared');
+      if (!tile) return;
+      const group = tile.querySelector(`[data-secret="${secret.hash}"]`);
       if (!group) return;
       group.innerHTML = updatedDocs
         .map(
@@ -256,6 +261,7 @@ async function renderSharedDataHTML() {
         )
         .join('');
     });
+    sharedDataUnsubscribers.push(unsub);
   }
   return html;
 }
