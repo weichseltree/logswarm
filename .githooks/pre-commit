@@ -1,0 +1,11 @@
+#!/bin/sh
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "main" ]; then
+  echo ""
+  echo "ERROR: Direct commits to main are not allowed."
+  echo ""
+  echo "Create a feature branch first:"
+  echo "  git checkout -b feature/my-change"
+  echo ""
+  exit 1
+fi
