@@ -108,12 +108,17 @@ function renderSecretsHTML() {
 
   return secrets
     .map(
-      (s) => `
+      (s) => {
+        const typeBadge = safeTypeBadge(s.type);
+        const safeLabel = escapeHTML(s.label || s.hash?.slice(0, 12) + '…');
+        const safeHash = escapeHTML(s.hash?.slice(0, 16) + '…');
+        return `
     <div class="list-item">
-      <span class="badge badge-${s.type || 'pin'}">${s.type || 'pin'}</span>
-      <span class="secret-label">${s.label || s.hash?.slice(0, 12) + '…'}</span>
-      <code class="hash-preview">${s.hash?.slice(0, 16)}…</code>
-    </div>`
+      <span class="badge badge-${typeBadge}">${escapeHTML(s.type || 'pin')}</span>
+      <span class="secret-label">${safeLabel}</span>
+      <code class="hash-preview">${safeHash}</code>
+    </div>`;
+      }
     )
     .join('');
 }
@@ -226,8 +231,11 @@ async function renderSharedDataHTML() {
   let html = '';
   for (const secret of secrets) {
     const docs = await getSharedData(secret.hash);
+    const safeHash = escapeHTML(secret.hash?.slice(0, 12) + '…');
+    const typeBadge = safeTypeBadge(secret.type);
     html += `<div class="shared-group" data-secret="${secret.hash}">
-      <h3>Secret: ${secret.hash?.slice(0, 12)}… <span class="badge badge-${secret.type}">${secret.type}</span></h3>`;
+      <h3>Secret: ${safeHash} <span class="badge badge-${typeBadge}">${escapeHTML(secret.type || 'pin')}</span></h3>
+      <div class="shared-docs">`;
     if (docs.length === 0) {
       html += '<em>No shared documents</em>';
     } else {
@@ -235,13 +243,13 @@ async function renderSharedDataHTML() {
         .map(
           (d) =>
             `<details class="doc-details">
-              <summary>${d.id}</summary>
-              <pre>${JSON.stringify(d, null, 2)}</pre>
+              <summary>${escapeHTML(d.id)}</summary>
+              <pre>${escapeHTML(JSON.stringify(d, null, 2))}</pre>
             </details>`
         )
         .join('');
     }
-    html += '</div>';
+    html += '</div></div>';
 
     // Subscribe to live updates and track the unsubscriber
     const unsub = subscribeToSharedData(secret.hash, (updatedDocs) => {
@@ -249,12 +257,14 @@ async function renderSharedDataHTML() {
       if (!tile) return;
       const group = tile.querySelector(`[data-secret="${secret.hash}"]`);
       if (!group) return;
-      group.innerHTML = updatedDocs
+      const docsContainer = group.querySelector('.shared-docs');
+      if (!docsContainer) return;
+      docsContainer.innerHTML = updatedDocs
         .map(
           (d) =>
             `<details class="doc-details">
-              <summary>${d.id}</summary>
-              <pre>${JSON.stringify(d, null, 2)}</pre>
+              <summary>${escapeHTML(d.id)}</summary>
+              <pre>${escapeHTML(JSON.stringify(d, null, 2))}</pre>
             </details>`
         )
         .join('');
@@ -419,7 +429,7 @@ function wireEvents(container) {
     await joinCluster(clusterId);
     const nodes = await getClusterNodes(clusterId);
     document.getElementById('cluster-nodes').innerHTML = nodes
-      .map((n) => `<div class="list-item">${n.slice(0, 12)}… ${n === getNodeId() ? '(you)' : ''}</div>`)
+      .map((n) => `<div class="list-item">${escapeHTML(n.slice(0, 12))}… ${n === getNodeId() ? '(you)' : ''}</div>`)
       .join('');
     showToast('Joined cluster ' + clusterId);
   });
@@ -574,10 +584,28 @@ function flattenObject(obj, prefix = '', exclude = []) {
 
 function formatValue(val) {
   if (val === null || val === undefined) return '<em>null</em>';
-  if (Array.isArray(val)) return val.join(', ');
+  if (Array.isArray(val)) return escapeHTML(val.join(', '));
   if (typeof val === 'boolean') return val ? '✓' : '✗';
   if (typeof val === 'number') return val.toLocaleString();
-  return String(val);
+  return escapeHTML(String(val));
+}
+
+/** Escape a string for safe inclusion in HTML. */
+function escapeHTML(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+const VALID_SECRET_TYPES = new Set(['pin', 'passphrase', 'pattern', 'master']);
+
+/** Return a safe CSS class suffix for a secret type. */
+function safeTypeBadge(type) {
+  return VALID_SECRET_TYPES.has(type) ? type : 'pin';
 }
 
 export function destroyDashboard() {

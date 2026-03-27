@@ -6,11 +6,10 @@ import {
   resetNode,
   joinCluster,
   getClusterNodes,
-  getNodeId,
   getComputeSpec,
 } from './auth.js';
 import { collectDeviceInfo } from './device-info.js';
-import { renderDashboard, destroyDashboard } from './dashboard.js';
+import { renderDashboard } from './dashboard.js';
 import { selfVerify } from './verification.js';
 
 // ─── State ───────────────────────────────────────────────────────────

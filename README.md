@@ -114,12 +114,13 @@ This project does **not** use traditional email/password authentication. Instead
 
 | Collection | Read | Write |
 |-----------|------|-------|
-| `/secrets` | Any (for login verification) | Owner node only |
-| `/nodes/{uid}` | Authenticated | Own node only |
+| `/secrets` | Authenticated (get only; listing denied) | Owner node only |
+| `/nodes/{uid}` | Own node only | Own node only |
 | `/nodes/{uid}/linkedSecrets` | Own node | Own node |
-| `/shared/{hash}/data` | Authenticated | Secret owner only |
+| `/shared/{hash}` | Nodes that linked the secret | Secret owner only |
+| `/shared/{hash}/data` | Nodes that linked the secret | Secret owner only |
 | `/routing/{uid}` | Authenticated | Own node only |
-| `/clusters` | Authenticated | Authenticated (create/join) |
+| `/clusters` | Authenticated | Authenticated (create/join self) |
 | `/master` | Authenticated | None (admin-only) |
 
 ## Setup

@@ -12,7 +12,7 @@ import {
   arrayUnion,
   onSnapshot,
 } from 'firebase/firestore';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from 'firebase/auth';
 import firebaseConfig from './firebase-config.js';
 import { hashSecret, deriveComputeSpec } from './crypto-utils.js';
 
@@ -244,7 +244,7 @@ export async function resetNode() {
   });
 
   // Sign out and reload
-  await auth.signOut();
+  await signOut(auth);
   linkedSecrets = [];
   isMaster = false;
   currentNodeId = null;

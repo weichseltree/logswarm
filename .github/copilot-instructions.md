@@ -102,8 +102,24 @@ Code must match the Firestore security rules in `firestore.rules`:
 
 ## Testing
 
-No test framework is set up yet. When adding tests:
-- Use Vitest (compatible with Vite).
+Tests use **Vitest** (compatible with Vite). Run from either workspace:
+
+```bash
+npm test              # root — crypto-utils.test.js, tiling.test.js
+cd dashboard && npm test  # Lumina — checksum, hamming, color, packet
+```
+
+Test files live alongside source in `__tests__/` directories:
+- `src/__tests__/crypto-utils.test.js` — SHA-256 hashing, prime factorisation, seeded PRNG, graph spec
+- `src/__tests__/tiling.test.js` — tile creation, tree building, navigation, spawn/remove, HTML rendering
+- `dashboard/src/__tests__/checksum.test.ts` — XOR checksum
+- `dashboard/src/__tests__/hamming.test.ts` — Hamming(7,4) encode/decode + error correction
+- `dashboard/src/__tests__/color.test.ts` — RGB classification into protocol colors
+- `dashboard/src/__tests__/packet.test.ts` — Packet round-trip, corruption detection
+
+CI runs automatically via `.github/workflows/ci.yml` on every PR and push to `main`.
+
+When adding new tests:
 - Mock Firebase with `firebase/testing` or a Firestore emulator.
 - Device-info tests should mock `navigator` APIs.
 - Test the `hashSecret()` function with known SHA-256 vectors.
