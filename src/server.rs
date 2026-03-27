@@ -10,11 +10,14 @@ use std::time::Instant;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
-use axum::response::{IntoResponse, Json};
+#[cfg(not(debug_assertions))]
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Json, Response};
 use axum::routing::get;
 use axum::Router;
 use serde_json::json;
 use tokio::signal;
+#[cfg(debug_assertions)]
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 
@@ -39,13 +42,30 @@ pub async fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Build the router
-    let mut app = Router::new()
+    let routes = Router::new()
         .route("/healthz", get(healthz))
         .route("/ws", get(ws_upgrade))
         .route("/auth/challenge", get(auth_challenge))
-        .route("/auth/verify", axum::routing::post(auth_verify))
-        .layer(CorsLayer::permissive())
-        .with_state(state);
+        .route("/auth/verify", axum::routing::post(auth_verify));
+
+    // CORS: in debug builds allow localhost dev-server origins; omit entirely in
+    // release builds because the dashboard is served from the same origin.
+    #[cfg(debug_assertions)]
+    let routes = routes.layer(
+        CorsLayer::new()
+            .allow_origin([
+                "http://localhost:3000"
+                    .parse::<axum::http::HeaderValue>()
+                    .expect("localhost:3000 is a valid header value"),
+                "http://127.0.0.1:3000"
+                    .parse::<axum::http::HeaderValue>()
+                    .expect("127.0.0.1:3000 is a valid header value"),
+            ])
+            .allow_methods(tower_http::cors::Any)
+            .allow_headers(tower_http::cors::Any),
+    );
+
+    let mut app = routes.with_state(state);
 
     // Serve static dashboard files if the directory exists
     let dashboard_path = Path::new(&dashboard_dir);
@@ -122,14 +142,28 @@ async fn auth_challenge() -> impl IntoResponse {
 
 async fn auth_verify(
     axum::extract::Json(_body): axum::extract::Json<serde_json::Value>,
-) -> impl IntoResponse {
-    // Stub: accept all devices for now
-    let device_id = uuid::Uuid::new_v4().to_string();
-    let token = format!("stub-jwt-{device_id}");
-    Json(json!({
-        "token": token,
-        "device_id": device_id,
-    }))
+) -> Response {
+    // In release builds, proper challenge/signature validation has not been
+    // implemented yet. Return 501 so callers fail loudly rather than silently
+    // accepting an unauthenticated stub token.
+    #[cfg(not(debug_assertions))]
+    return (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(json!({ "error": "auth verify not yet implemented" })),
+    )
+        .into_response();
+
+    // Debug-only stub: accept all devices unconditionally.
+    #[cfg(debug_assertions)]
+    {
+        let device_id = uuid::Uuid::new_v4().to_string();
+        let token = format!("stub-jwt-{device_id}");
+        Json(json!({
+            "token": token,
+            "device_id": device_id,
+        }))
+        .into_response()
+    }
 }
 
 // ── Graceful shutdown ───────────────────────────────────────────────────

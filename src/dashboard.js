@@ -2,14 +2,12 @@ import {
   getNodeId,
   getLinkedSecrets,
   getIsMaster,
-  getComputeSpec,
   getSharedData,
   getRoutingConfig,
   updateRoutingConfig,
   subscribeToSharedData,
   getClusterNodes,
   getAllSecrets,
-  setSharedData,
 } from './auth.js';
 import { collectDeviceInfo, subscribeSensors } from './device-info.js';
 import { buildDashboardTree, renderTileHTML, spawnTile, createTile, getRootTile } from './tiling.js';

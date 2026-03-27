@@ -4,10 +4,10 @@ service cloud.firestore {
 
     // --- Secrets collection ---
     // Secrets map hashed credentials to node IDs.
-    // Anyone can read (to verify a secret at login).
+    // Reads require authentication to prevent unauthenticated enumeration.
     // Only the owning node can write its own secrets.
     match /secrets/{secretId} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow create: if request.auth != null
         && request.resource.data.nodeId == request.auth.uid;
       allow update, delete: if request.auth != null
@@ -32,10 +32,11 @@ service cloud.firestore {
     }
 
     // --- Shared data ---
-    // Data shared via a secret. Readable by anyone who knows the secretHash.
+    // Data shared via a secret. Readable only by nodes that have linked that secret.
     // Writable only by the node that owns the secret.
     match /shared/{secretHash}/data/{docId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+        && exists(/databases/$(database)/documents/nodes/$(request.auth.uid)/linkedSecrets/$(secretHash));
       allow create, update: if request.auth != null
         && exists(/databases/$(database)/documents/secrets/$(secretHash))
         && get(/databases/$(database)/documents/secrets/$(secretHash)).data.nodeId == request.auth.uid;
@@ -54,11 +55,20 @@ service cloud.firestore {
 
     // --- Clusters ---
     // Any authenticated node can read clusters.
-    // Nodes can join/leave clusters (update members array).
+    // Nodes can only join or leave themselves — only the 'nodes' array may be
+    // changed, and the delta must be exactly {request.auth.uid}.
     match /clusters/{clusterId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nodes'])
+        && (
+          // Joining: caller adds only their own UID
+          request.resource.data.nodes.toSet().difference(resource.data.nodes.toSet()).hasOnly([request.auth.uid])
+          ||
+          // Leaving: caller removes only their own UID
+          resource.data.nodes.toSet().difference(request.resource.data.nodes.toSet()).hasOnly([request.auth.uid])
+        );
       allow delete: if false;
     }
 

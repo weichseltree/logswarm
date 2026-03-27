@@ -59,6 +59,8 @@ export function initAuth() {
       }
     });
   });
+
+  return authInitPromise;
 }
 
 export function getNodeId() {

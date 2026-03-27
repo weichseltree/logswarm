@@ -1,12 +1,14 @@
 // ─── Recursive Tiling Engine ─────────────────────────────────────────
 // Each tile can contain content or spawn child tiles.
-// Tiles are addressed by a path like [0, 2, 1] (root → 3rd child → 2nd child).
+// Tiles are addressed by string IDs (e.g. 'node', 'node.secrets').
+// getTileAtPath() accepts an array of string ID segments to navigate the tree,
+// e.g. ['node', 'node.secrets'] traverses root → node container → secrets tile.
 // Locked tiles are determined by the prime decomposition of the node's seed.
 
 // ─── Tile Data Structure ─────────────────────────────────────────────
 /**
  * @typedef {Object} Tile
- * @property {string}   id        - Unique tile ID (path-based, e.g. "0.2.1")
+ * @property {string}   id        - Unique string tile ID (e.g. 'node.secrets', 'network.shared')
  * @property {string}   label     - Display label
  * @property {string}   type      - 'container' | 'content' | 'locked'
  * @property {Tile[]}   children  - Sub-tiles (if container)
@@ -130,6 +132,8 @@ export function onTileNavigate(callback) {
 }
 
 // ─── Resolve Tile at Path ────────────────────────────────────────────
+// path is an array of string tile IDs, e.g. ['node', 'node.secrets'].
+// Each segment is matched against child tile IDs at that level.
 export function getTileAtPath(path) {
   if (!rootTile) return null;
   let current = rootTile;
