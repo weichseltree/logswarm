@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Secrets collection ---
+    // Secrets map hashed credentials to node IDs.
+    // Anyone can read (to verify a secret at login).
+    // Only the owning node can write its own secrets.
+    match /secrets/{secretId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.nodeId == request.auth.uid;
+      allow update, delete: if request.auth != null
+        && resource.data.nodeId == request.auth.uid;
+    }
+
+    // --- Nodes collection ---
+    // Each anonymous user gets a node document keyed by their auth UID.
+    match /nodes/{nodeId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && nodeId == request.auth.uid;
+      allow update: if request.auth != null
+        && nodeId == request.auth.uid;
+      allow delete: if false;
+
+      // Sub-collection: linked secrets visible to the node owner
+      match /linkedSecrets/{secretRef} {
+        allow read, write: if request.auth != null
+          && nodeId == request.auth.uid;
+      }
+    }
+
+    // --- Shared data ---
+    // Data shared via a secret. Readable by anyone who knows the secretHash.
+    // Writable only by the node that owns the secret.
+    match /shared/{secretHash}/data/{docId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && exists(/databases/$(database)/documents/secrets/$(secretHash))
+        && get(/databases/$(database)/documents/secrets/$(secretHash)).data.nodeId == request.auth.uid;
+      allow delete: if request.auth != null
+        && exists(/databases/$(database)/documents/secrets/$(secretHash))
+        && get(/databases/$(database)/documents/secrets/$(secretHash)).data.nodeId == request.auth.uid;
+    }
+
+    // --- Routing configuration ---
+    // Each node manages its own routing/filter settings.
+    match /routing/{nodeId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && nodeId == request.auth.uid;
+    }
+
+    // --- Clusters ---
+    // Any authenticated node can read clusters.
+    // Nodes can join/leave clusters (update members array).
+    match /clusters/{clusterId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    // --- Master access ---
+    // A master password hash grants read access to all private data.
+    match /master/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only set via admin SDK or console
+    }
+  }
+}
