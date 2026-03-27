@@ -1,7 +1,7 @@
 # logswarm
 
-> Run `logswarm.sh` to summon a swarm of programs to do your computations and
-> daemon the full power of the localhost into your service.
+Run `logswarm.sh` to summon a swarm of programs to do your computations and daemon the full power of the localhost into your service.
+A virtual swarm of service agents that process heterogeneous data streams in real time, with a browser-based dashboard that renders stream data as an interactive navigation map powered by a graph neural network.
 
 ## Quick Start
 
