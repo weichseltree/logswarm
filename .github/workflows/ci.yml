@@ -77,15 +77,34 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify service account
+        run: |
+          SA_EMAIL=$(echo "$FIREBASE_SA" | jq -r '.client_email')
+          echo "Project:         $FIREBASE_PROJECT_ID"
+          echo "Service account: $SA_EMAIL"
+          echo ""
+          echo "Required IAM roles for this service account:"
+          echo "  - roles/firebasehosting.admin"
+          echo "  - roles/firebaserules.admin"
+          echo "  - roles/clouddatastore.admin"
+          echo "  - roles/serviceusage.serviceUsageConsumer"
+          echo ""
+          echo "Grant them at:"
+          echo "  https://console.cloud.google.com/iam-admin/iam?project=$FIREBASE_PROJECT_ID"
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ fromJSON(secrets.FIREBASE_SERVICE_ACCOUNT).project_id }}
+
       - name: Deploy to Firebase
         run: |
           SA_FILE=$(mktemp --tmpdir firebase-sa-XXXXXX.json)
+          trap 'rm -f "$SA_FILE"' EXIT
           echo "$FIREBASE_SA" > "$SA_FILE"
           chmod 600 "$SA_FILE"
           GOOGLE_APPLICATION_CREDENTIALS="$SA_FILE" \
             npx firebase-tools deploy \
+              --only hosting,firestore,storage \
               --project "$FIREBASE_PROJECT_ID" --non-interactive
-          rm -f "$SA_FILE"
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_PROJECT_ID: ${{ fromJSON(secrets.FIREBASE_SERVICE_ACCOUNT).project_id }}

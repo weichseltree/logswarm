@@ -184,6 +184,25 @@ firebase use your-project-id
 firebase deploy --only firestore,storage
 ```
 
+### CI Service Account
+
+CI deploys to Firebase using a service account key stored in the GitHub
+secret `FIREBASE_SERVICE_ACCOUNT`. The account (its `client_email`) needs
+the following IAM roles on the Firebase project:
+
+| Role | Why |
+|------|-----|
+| `roles/firebasehosting.admin` | Deploy hosting assets |
+| `roles/firebaserules.admin` | Deploy Firestore and Storage security rules |
+| `roles/clouddatastore.admin` | Deploy Firestore indexes |
+| `roles/serviceusage.serviceUsageConsumer` | Required by the Firebase CLI to access project services |
+
+Grant them at:
+`https://console.cloud.google.com/iam-admin/iam?project=<your-project-id>`
+
+The deploy workflow logs the service account email at the start of the
+**Deploy to Firebase** job so you can verify which account is active.
+
 ### Development
 
 ```bash
