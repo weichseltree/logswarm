@@ -44,7 +44,7 @@ export async function renderDashboard(container) {
         ⬡ ${spec.dimensions}D · ${spec.signature.slice(0, 4).join('·')}${spec.signature.length > 4 ? '…' : ''}
       </span>` : ''}
       <button id="btn-add-secret" class="btn btn-sm">+ Add Secret</button>
-      <button id="btn-reset" class="btn btn-sm btn-danger">Reset (6 7 OK)</button>
+      <button id="btn-reset" class="btn btn-sm btn-danger">Reset</button>
     </header>
 
     <div class="tile-canvas">

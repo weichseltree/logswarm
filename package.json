@@ -1,6 +1,6 @@
 {
   "name": "logswarm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Distributed computation routing and filtering with anonymous secret-based authentication",
   "type": "module",
   "scripts": {
