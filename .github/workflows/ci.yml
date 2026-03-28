@@ -55,9 +55,9 @@ jobs:
       - name: Run tests
         run: cargo test --verbose
 
-  # ── Deploy to Firebase Hosting (only on push to main) ───────────────
+  # ── Deploy entire Firebase project (only on push to main) ────────────
   deploy:
-    name: Deploy to Firebase Hosting
+    name: Deploy to Firebase
     runs-on: ubuntu-latest
     needs: [test-js, test-rust]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -77,25 +77,18 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy Firestore and Storage rules
+      - name: Deploy to Firebase
         run: |
           SA_FILE=$(mktemp --tmpdir firebase-sa-XXXXXX.json)
           echo "$FIREBASE_SA" > "$SA_FILE"
           chmod 600 "$SA_FILE"
           GOOGLE_APPLICATION_CREDENTIALS="$SA_FILE" \
-            npx firebase-tools deploy --only firestore:rules,storage:rules \
+            npx firebase-tools deploy \
               --project "$FIREBASE_PROJECT_ID" --non-interactive
           rm -f "$SA_FILE"
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_PROJECT_ID: ${{ fromJSON(secrets.FIREBASE_SERVICE_ACCOUNT).project_id }}
-
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          channelId: live
-          projectId: ${{ fromJSON(secrets.FIREBASE_SERVICE_ACCOUNT).project_id }}
 
       - name: Update env/version in Firestore
         run: |

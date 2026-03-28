@@ -4,12 +4,16 @@ import { db } from './auth.js';
 let initialCommitSha = null;
 let currentUnsubscribe = null;
 let retryCount = 0;
-let retryPending = false;
+let retryTimer = null;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
 
 export function subscribeToVersion() {
-  retryPending = false;
+  // Cancel any pending retry timer to prevent duplicate listeners
+  if (retryTimer !== null) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
 
   // Clean up any previous listener before starting a new one
   if (currentUnsubscribe) {
@@ -21,6 +25,7 @@ export function subscribeToVersion() {
   currentUnsubscribe = onSnapshot(
     ref,
     (snap) => {
+      retryCount = 0; // Reset on successful connection
       if (!snap.exists()) return;
       const data = snap.data();
       if (initialCommitSha === null) {
@@ -33,10 +38,12 @@ export function subscribeToVersion() {
     },
     (error) => {
       console.warn('[version-check] Firestore version listener error:', error);
-      if (retryCount < MAX_RETRIES && !retryPending) {
+      if (retryCount < MAX_RETRIES && retryTimer === null) {
         retryCount++;
-        retryPending = true;
-        setTimeout(() => subscribeToVersion(), RETRY_DELAY_MS);
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
+          subscribeToVersion();
+        }, RETRY_DELAY_MS);
       }
     },
   );
