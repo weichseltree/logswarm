@@ -19,7 +19,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # Root project (frontend dashboard JS)
@@ -68,7 +68,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -103,7 +103,7 @@ jobs:
           chmod 600 "$SA_FILE"
           GOOGLE_APPLICATION_CREDENTIALS="$SA_FILE" \
             npx firebase-tools deploy \
-              --only hosting,firestore,storage \
+              --only hosting,firestore \
               --project "$FIREBASE_PROJECT_ID" --non-interactive
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
