@@ -77,6 +77,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Deploy Firestore and Storage rules
+        run: |
+          echo "$FIREBASE_SA" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx firebase-tools deploy --only firestore:rules,storage:rules \
+            --project "$FIREBASE_PROJECT_ID" --force --non-interactive
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-sa.json
+          FIREBASE_PROJECT_ID: ${{ fromJSON(secrets.FIREBASE_SERVICE_ACCOUNT).project_id }}
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
