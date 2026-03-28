@@ -82,7 +82,7 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
-          projectId: logswarm-production
+          projectId: ${{ fromJSON(secrets.FIREBASE_SERVICE_ACCOUNT).project_id }}
 
       - name: Update env/version in Firestore
         run: |
