@@ -92,14 +92,16 @@ jobs:
             const { getFirestore } = require('firebase-admin/firestore');
             const pkg = require('./package.json');
             const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-            initializeApp({ credential: cert(sa) });
+            initializeApp({ credential: cert(sa), projectId: sa.project_id });
             const db = getFirestore();
             db.doc('env/version').set({
               version: pkg.version,
               commitSha: '${{ github.sha }}',
               buildNumber: '${{ github.run_number }}',
               deployedAt: new Date().toISOString(),
-            }).then(() => console.log('env/version updated to ' + pkg.version));
+            })
+            .then(() => { console.log('env/version updated to ' + pkg.version); process.exit(0); })
+            .catch(err => { console.error('Failed to update env/version in Firestore:', err); process.exit(1); });
           "
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
