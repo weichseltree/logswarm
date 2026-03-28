@@ -82,32 +82,26 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
-          projectId: logswarm-production
+          projectId: ${{ fromJSON(secrets.FIREBASE_SERVICE_ACCOUNT).project_id }}
 
       - name: Update env/version in Firestore
         run: |
           npm install --no-save firebase-admin@11
           node -e "
-            (async () => {
-              try {
-                const { initializeApp, cert } = require('firebase-admin/app');
-                const { getFirestore } = require('firebase-admin/firestore');
-                const pkg = require('./package.json');
-                const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-                initializeApp({ credential: cert(sa) });
-                const db = getFirestore();
-                await db.doc('env/version').set({
-                  version: pkg.version,
-                  commitSha: '${{ github.sha }}',
-                  buildNumber: '${{ github.run_number }}',
-                  deployedAt: new Date().toISOString(),
-                });
-                console.log('env/version updated to ' + pkg.version);
-              } catch (err) {
-                console.error('Failed to update env/version in Firestore:', err);
-                process.exitCode = 1;
-              }
-            })();
+            const { initializeApp, cert } = require('firebase-admin/app');
+            const { getFirestore } = require('firebase-admin/firestore');
+            const pkg = require('./package.json');
+            const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            initializeApp({ credential: cert(sa), projectId: sa.project_id });
+            const db = getFirestore();
+            db.doc('env/version').set({
+              version: pkg.version,
+              commitSha: '${{ github.sha }}',
+              buildNumber: '${{ github.run_number }}',
+              deployedAt: new Date().toISOString(),
+            })
+            .then(() => { console.log('env/version updated to ' + pkg.version); process.exit(0); })
+            .catch(err => { console.error('Failed to update env/version in Firestore:', err); process.exit(1); });
           "
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
