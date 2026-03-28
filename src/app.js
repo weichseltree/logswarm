@@ -306,7 +306,7 @@ async function doAuthenticate(rawSecret, type) {
 function checkMaxAttempts() {
   if (attempts >= MAX_ATTEMPTS) {
     setStatus(
-      'Max attempts exceeded. Use PIN 6 7 OK to enter as a fresh node.',
+      'Max attempts exceeded. Clear your browser data and try again.',
       'warning'
     );
     // Auto-switch to PIN tab

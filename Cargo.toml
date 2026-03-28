@@ -1,6 +1,6 @@
 [package]
 name = "logswarm"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Manuel Weichselbaum"]
 description = "Summon a swarm of programs to do your computations and daemon the full power of the localhost into your service."

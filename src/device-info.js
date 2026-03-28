@@ -200,7 +200,7 @@ function getGpuInfo() {
       version: gl.getParameter(gl.VERSION),
       shadingVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
       maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
-      maxViewportDims: gl.getParameter(gl.MAX_VIEWPORT_DIMS),
+      maxViewportDims: Array.from(gl.getParameter(gl.MAX_VIEWPORT_DIMS)),
     };
   } catch {
     return { supported: false };

@@ -28,7 +28,7 @@ let unsubscribers = [];
 let currentComputeSpec = null; // { hash, seed, primes, signature, dimensions }
 
 // ─── Constants ───────────────────────────────────────────────────────
-const RESET_PIN = '67'; // The "6 7 OK" universal fallback
+const RESET_PIN = '67';
 
 // ─── Firebase Auth ───────────────────────────────────────────────────
 let authInitPromise = null;
@@ -80,7 +80,6 @@ export function getComputeSpec() {
  *  action: 'reset' | 'authenticated' | 'new_secret' | 'failed'
  */
 export async function authenticateWithSecret(rawSecret, type = 'pin') {
-  // 6 7 OK — universal reset
   if (rawSecret === RESET_PIN) {
     await resetNode();
     return { action: 'reset' };
