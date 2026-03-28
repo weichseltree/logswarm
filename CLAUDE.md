@@ -60,7 +60,21 @@ version = "0.2.0"
 
 ## Git Workflow
 
-**Direct commits and pushes to `main` are not allowed.** A pre-commit hook enforces this locally.
+**Direct commits and pushes to `main` are not allowed.** A pre-commit hook in `.githooks/` enforces this locally.
+
+### Setting up git hooks (required for new contributors)
+
+Run once after cloning the repo:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Alternatively, the `prepare` npm script handles this automatically:
+
+```bash
+npm install  # runs `npm run prepare` which sets core.hooksPath
+```
 
 All changes must go through a feature branch and pull request:
 

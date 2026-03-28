@@ -86,7 +86,7 @@ jobs:
 
       - name: Update env/version in Firestore
         run: |
-          npm install --no-save firebase-admin
+          npm install --no-save firebase-admin@11
           node -e "
             const { initializeApp, cert } = require('firebase-admin/app');
             const { getFirestore } = require('firebase-admin/firestore');
